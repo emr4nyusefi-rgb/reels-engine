@@ -25,7 +25,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
 .hook-text{font-weight:700;line-height:1.6;position:relative}
 .big{font-weight:700;line-height:1.65}
 .bar{position:absolute;height:12px;background:var(--accent);transform-origin:right center;transform:scaleX(0)}
-.phrase{position:absolute;left:120px;top:230px;width:840px;font-weight:700;font-size:168px;line-height:.96;letter-spacing:-.045em;color:var(--accent);opacity:0}
+.phrase{position:absolute;left:120px;top:230px;direction:ltr;white-space:nowrap;font-family:"TCScript","Brush Script MT",cursive;font-size:190px;line-height:1.05;letter-spacing:0;color:var(--accent);-webkit-text-stroke:3px var(--accent);opacity:0}
 .tag{display:flex;align-items:center;gap:22px;font-weight:700;font-size:40px;margin-bottom:46px;opacity:0}
 .tag b{display:block;width:96px;height:6px;background:var(--ink)}
 .step{display:flex;direction:rtl;align-items:flex-start;gap:30px;padding:30px 0;border-top:2px solid var(--ink);opacity:0}
@@ -82,8 +82,9 @@ function build(){
     const o=mk(s.type);o.start=s.start;o.end=s.end;
     if(s.type==="hook"){
       const ph=D.phrase||"";
-      if(ph){const p=document.createElement("div");p.className="phrase latin";
-        p.innerHTML=ph.split(/\s+/).join("<br>");o.el.appendChild(p);o.phrase=p;}
+      if(ph){const p=document.createElement("div");p.className="phrase";
+        p.innerHTML=ph.split(/\s+/).join("<br>");o.el.appendChild(p);o.phrase=p;
+        for(const sz of [190,168,148,128,108,92]){p.style.fontSize=sz+"px";if(p.offsetWidth<=840&&p.offsetHeight<=660)break;}}
       const z=zone(o,930);const h=document.createElement("div");h.className="hook-text";z.appendChild(h);
       o.words=words(h,s.screen_text||s.narration);fit(h,700,[116,104,96,88,80,72]);
       o.hlIndex=(()=>{const hl=norm(s.highlight);let i=o.words.findIndex(w=>norm(w.textContent)===hl);
@@ -99,11 +100,7 @@ function build(){
         r.appendChild(n);r.appendChild(t);z.appendChild(r);o.steps.push(r);
       });
     }else if(s.type==="loop"){
-      const z=zone(o,520);const w=document.createElement("div");w.className="endwrap";z.appendChild(w);
-      const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-      svg.setAttribute("width","120");svg.setAttribute("height","140");svg.setAttribute("viewBox","0 0 74 86");
-      svg.innerHTML='<path d="M12 0H62A12 12 0 0 1 74 12V86L37 62L0 86V12A12 12 0 0 1 12 0Z" fill="#E55A31"/>';
-      svg.style.opacity=0;w.appendChild(svg);o.svg=svg;
+      const z=zone(o,600);const w=document.createElement("div");w.className="endwrap";z.appendChild(w);
       const t=document.createElement("div");t.className="big";t.style.width="100%";w.appendChild(t);
       o.words=words(t,s.screen_text||s.narration);fit(t,520,[100,92,84,76,68]);
       const sg=document.createElement("div");sg.className="script";sg.textContent="Maybe life will be better tomorrow.";w.appendChild(sg);o.script=sg;
@@ -146,7 +143,6 @@ function setTime(t){
       const n=o.steps.length||1;const gap=Math.max(0.6,(dur-1.2)/(n+0.5));
       o.steps.forEach((r,i)=>{const a=ease((lt-0.6-i*gap)/0.45);r.style.opacity=a;r.style.transform="translateY("+((1-a)*26)+"px)";});
     }else if(o.type==="loop"){
-      const a=ease((lt-0.05)/0.5);o.svg.style.opacity=a;o.svg.style.transform="translateY("+((1-a)*20)+"px)";
       const doneAt=reveal(o,lt,0.4,Math.min(1.0,dur*0.4));
       o.script.style.opacity=ease((lt-doneAt)/0.5);
     }else{
@@ -157,5 +153,11 @@ function setTime(t){
   document.getElementById("idx").textContent=(cur<0?"":("0"+(cur+1)+" / 0"+scenes.length));
   tg.style.opacity=(cur>0&&cur<scenes.length-1)?1:0;
 }
-function init(){build();setTime(0);return true;}
+async function init(){
+  // make sure the real fonts are loaded before anything is measured; fail instead of using a fallback font
+  await document.fonts.load('100px TCScript','Ab');
+  await document.fonts.load('700 40px Alibaba','ابپ');
+  if(!document.fonts.check('100px TCScript'))throw new Error("TC Hamilton font did not load");
+  build();setTime(0);return true;
+}
 </script></body></html>
