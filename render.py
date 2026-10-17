@@ -110,7 +110,20 @@ def trim_and_normalize(src, dst):
     tmp.unlink(missing_ok=True)
 
 
-def build_timeline(scenes, dur, head=0.25, tail=2.2):
+def hook_cover_ms(timed):
+    """Moment (ms) when the hook slide is fully revealed: used as Buffer's metadata.thumbnailOffset
+    (custom cover images are not accepted by Buffer's API; the thumbnail is a frame of the video)."""
+    h = timed[0]
+    n = max(1, len((h.get("screen_text") or h["narration"]).split()))
+    dur = h["end"] - h["start"]
+    step = min(0.22, min(1.2, dur * 0.5) / n)
+    done = 0.35 + n * step + 0.35          # last word revealed
+    bar = done - 0.1 + 0.5                 # underline fully drawn
+    t = min(bar + 0.15, dur - 0.3)
+    return int(max(0.5, t) * 1000)
+
+
+def build_timeline(scenes, dur, head=0.25, tail=0.8):
     total = head + dur + tail
     weights = [max(4 if s.get("type") == "outro" else 1, len(s["narration"].split())) for s in scenes]
     acc, out = 0.0, []
@@ -123,7 +136,7 @@ def build_timeline(scenes, dur, head=0.25, tail=2.2):
     return out, total
 
 
-def render_frames(data, total, frames):
+def render_frames(data, total, frames, cover_path):
     from playwright.sync_api import sync_playwright
     html = (HERE / "template.html").read_text(encoding="utf-8").replace("__DATA__", json.dumps(data, ensure_ascii=False))
     page_path = HERE / "_page.html"
@@ -138,6 +151,8 @@ def render_frames(data, total, frames):
         for i in range(n):
             pg.evaluate(f"setTime({i / FPS:.4f})")
             pg.screenshot(path=str(frames / f"{i:05d}.jpg"), type="jpeg", quality=92)
+        pg.evaluate("cover()")  # clean 1080x1920 thumbnail (hook slide fully revealed)
+        pg.screenshot(path=str(cover_path), type="jpeg", quality=95)
         b.close()
     return n
 
@@ -181,14 +196,16 @@ def main():
 
     timed, total = build_timeline(scenes, dur)
     data = {"scenes": timed, "phrase": script.get("phrase", "")}
-    n = render_frames(data, total, work / "frames")
+    n = render_frames(data, total, work / "frames", out_path.parent / "cover.jpg")
     print(f"frames: {n}, total {total:.1f}s")
 
     run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(work / "frames" / "%05d.jpg"),
          "-i", str(wav), "-af", "adelay=250:all=1,apad", "-t", f"{total:.3f}",
          "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", str(FPS),
          "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out_path)])
-    meta = {"tts": engine, "seconds": round(total, 2), "frames": n, "caption": script.get("caption", "")}
+    meta = {"tts": engine, "seconds": round(total, 2), "frames": n, "caption": script.get("caption", ""),
+            # publishing rules: never show these Reels on the profile grid; thumbnail = hook slide frame
+            "share_to_feed": False, "thumbnail_offset_ms": hook_cover_ms(timed), "cover": "cover.jpg"}
     (out_path.parent / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     print("done:", out_path, meta)
 
