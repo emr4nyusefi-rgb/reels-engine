@@ -110,7 +110,7 @@ def trim_and_normalize(src, dst):
     tmp.unlink(missing_ok=True)
 
 
-def build_timeline(scenes, dur, head=0.25, tail=0.8):
+def build_timeline(scenes, dur, head=0.25, tail=2.2):
     total = head + dur + tail
     weights = [max(4 if s.get("type") == "outro" else 1, len(s["narration"].split())) for s in scenes]
     acc, out = 0.0, []
