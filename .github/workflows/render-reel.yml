@@ -1,0 +1,52 @@
+name: Render Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "Reel script JSON (leave empty to render sample_script.json)"
+        required: false
+        default: ""
+      tag:
+        description: "Release tag, e.g. reel-2026-10-17"
+        required: false
+        default: "reel-sample"
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg and Python deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Render reel
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TTS_VOICE: Riko
+          SCRIPT: ${{ inputs.script }}
+        run: |
+          if [ -n "$SCRIPT" ]; then printf '%s' "$SCRIPT" > script.json; else cp sample_script.json script.json; fi
+          python render.py script.json out/reel.mp4
+
+      - name: Publish to a release (public link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Rendered reel"
+          gh release upload "$TAG" out/reel.mp4 out/meta.json --clobber
+          echo "VIDEO: https://github.com/${{ github.repository }}/releases/download/$TAG/reel.mp4"
