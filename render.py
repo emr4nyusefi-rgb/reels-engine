@@ -2,10 +2,10 @@
 """Render one Instagram Reel (1080x1920, 30fps) from a script JSON.
 
 Usage: python render.py script.json out/reel.mp4
-Env:   GEMINI_API_KEY (Gemini TTS), TTS_VOICE (default Riko); no fallback voice is ever used,
+Env:   GEMINI_API_KEY (Gemini TTS), narrator voice fixed in VOICE=Charon; no fallback voice is ever used,
        SKIP_TTS=1 (quiet test tone, only for layout tests)
 """
-import base64, json, os, pathlib, shutil, subprocess, sys, time, urllib.request, wave
+import base64, json, os, pathlib, shutil, subprocess, sys, time, urllib.error, urllib.request, wave
 
 W, H = 1080, 1920
 FPS = int(os.environ.get("REEL_FPS", "30"))
@@ -16,6 +16,7 @@ FONTS = {
     "Script.otf": "https://res.cloudinary.com/ezjkiau6/raw/upload/v1791371015/TchamiltonarcscriptRegular-yYXvm.otf",
 }
 GEMINI_TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]
+VOICE = "Charon"  # fixed narrator voice (the user's choice); never replaced by another voice
 DIRECTOR = ("Read the following transcript based on the director's note.\n\n# Director's note\n"
             "Style: warm, friendly, natural spoken Persian, like a friend sharing something interesting. "
             "Lively but unhurried pace, clear pauses between sentences.\n\n## Transcript:\n")
@@ -57,8 +58,11 @@ def gemini_tts(text, voice, model, key, out_wav):
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         data=json.dumps(body).encode(), method="POST",
         headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        res = json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            res = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError("HTTP %s: %s" % (e.code, e.read().decode("utf-8", "replace")[:300]))
     part = res["candidates"][0]["content"]["parts"][0]["inlineData"]
     rate = 24000
     for piece in part.get("mimeType", "").split(";"):
@@ -73,7 +77,7 @@ def make_audio(text, out_wav, work):
         run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=220:sample_rate=24000", "-af", "volume=2", "-t",
              os.environ.get("SKIP_TTS_SECONDS", "17"), str(out_wav)])
         return "test-tone"
-    key, voice, errors = os.environ.get("GEMINI_API_KEY"), os.environ.get("TTS_VOICE", "Riko"), []
+    key, voice, errors = os.environ.get("GEMINI_API_KEY"), VOICE, []
     raw = work / "raw.wav"
     if key:
         for model in GEMINI_TTS_MODELS:
@@ -88,7 +92,7 @@ def make_audio(text, out_wav, work):
                 except Exception as e:
                     errors.append(f"{model}: {e}")
                     time.sleep(6 * (attempt + 1))
-    # Riko must always narrate the reel: if Gemini TTS keeps failing, fail the job instead of using another voice.
+    # The chosen voice must always narrate the reel: if Gemini TTS keeps failing, fail the job instead of using another voice.
     raise RuntimeError("Gemini TTS (voice " + voice + ") failed after retries; no other voice is used. " + (" | ".join(errors) if errors else "GEMINI_API_KEY missing"))
 
 
