@@ -18,10 +18,11 @@ FONTS = {
 GEMINI_TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]
 VOICE = "Charon"  # fixed narrator voice (the user's choice); never replaced by another voice
 DIRECTOR = ("Read the following transcript based on the director's note.\n\n# Director's note\n"
-            "Style: calm, confident and very clear Persian narration, correct standard grammar, "
-            "like a composed expert stating a simple fact. Slow, steady pace, low and relaxed energy, "
-            "firm declarative endings (no upward question tone except for real questions), "
-            "short natural pauses between sentences.\n\n## Transcript:\n")
+            "Style: relaxed, warm, casual spoken Persian, like a friend telling you something in a chat. "
+            "Not formal, not a news announcer, not a lecture. Natural everyday conversational rhythm and "
+            "everyday pronunciation of colloquial words, with clear articulation. "
+            "Calm, unhurried pace, short natural pauses between sentences, "
+            "and a friendly, relaxed ending.\n\n## Transcript:\n")
 
 
 def run(cmd, **kw):
@@ -43,7 +44,7 @@ def get_fonts():
             continue
         try:
             urllib.request.urlretrieve(url, p)
-        except Exception as e:  # fallback fonts will be used
+        except Exception as e:  # template.html fails the render if the Hamilton font is missing
             print("font download failed:", name, e)
 
 
@@ -133,7 +134,7 @@ def render_frames(data, total, frames):
         pg = b.new_page(viewport={"width": W, "height": H})
         pg.goto(page_path.as_uri())
         pg.evaluate("() => document.fonts.ready.then(() => true)")
-        pg.evaluate("init()")
+        pg.evaluate("init()")  # async in template.html: loads the fonts and raises if Hamilton is missing
         for i in range(n):
             pg.evaluate(f"setTime({i / FPS:.4f})")
             pg.screenshot(path=str(frames / f"{i:05d}.jpg"), type="jpeg", quality=92)
