@@ -153,7 +153,7 @@ function setTime(t){
       o.steps.forEach((r,i)=>{const a=ease((lt-0.6-i*gap)/0.45);r.style.opacity=a;r.style.transform="translateY("+((1-a)*26)+"px)";});
     }else if(o.type==="loop"){
       const doneAt=reveal(o,lt,0.4,Math.min(1.0,dur*0.4));
-      o.script.style.opacity=ease((lt-doneAt)/0.5);
+      const showAt=Math.max(doneAt,dur-1.6);o.script.style.opacity=ease((lt-showAt)/0.5);
     }else{
       const doneAt=reveal(o,lt,0.4,Math.min(1.4,dur*0.55));
       o.bar.style.transform="scaleX("+ease((lt-doneAt+0.1)/0.5)+")";
