@@ -46,7 +46,7 @@ const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const norm=s=>(s||"").replace(/[^\p{L}\p{N}\u200c]/gu,"");
 const fa=n=>String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]);
-const LABELS={empathy:"نتیجه",situation:"موقعیت",practice:"تمرین امروز"};
+const LABELS={empathy:"نتیجه",situation:"موقعیت",example:"مثال",topic:"موضوع مرتبط",practice:"تمرین امروز"};
 const scenes=[];let segEls=[];
 
 function words(el,text){
@@ -113,7 +113,7 @@ function build(){
       bar.style.position="relative";bar.style.display="block";bar.style.marginLeft="auto";bar.style.marginTop="30px";
       z.appendChild(bar);o.bar=bar;
     }else{
-      const z=zone(o,s.type==="situation"?560:600);tag(o,z,s.label||LABELS[s.type]||LABELS.empathy);
+      const z=zone(o,["situation","example","topic"].includes(s.type)?560:600);tag(o,z,s.label||LABELS[s.type]||LABELS.empathy);
       const t=document.createElement("div");t.className="big";z.appendChild(t);
       o.words=words(t,s.screen_text||s.narration);fit(t,760,[100,92,84,76,68,60]);
       const bar=document.createElement("div");bar.className="bar";bar.style.width="220px";bar.style.right="0";
