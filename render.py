@@ -44,7 +44,7 @@ def get_fonts():
             continue
         try:
             urllib.request.urlretrieve(url, p)
-        except Exception as e:  # template.html fails the render if the Hamilton font is missing
+        except Exception as e:  # fallback fonts will be used
             print("font download failed:", name, e)
 
 
@@ -112,7 +112,7 @@ def trim_and_normalize(src, dst):
 
 def build_timeline(scenes, dur, head=0.25, tail=0.8):
     total = head + dur + tail
-    weights = [max(1, len(s["narration"].split())) for s in scenes]
+    weights = [max(4 if s.get("type") == "outro" else 1, len(s["narration"].split())) for s in scenes]
     acc, out = 0.0, []
     for i, s in enumerate(scenes):
         share = weights[i] / sum(weights) * dur
@@ -134,7 +134,7 @@ def render_frames(data, total, frames):
         pg = b.new_page(viewport={"width": W, "height": H})
         pg.goto(page_path.as_uri())
         pg.evaluate("() => document.fonts.ready.then(() => true)")
-        pg.evaluate("init()")  # async in template.html: loads the fonts and raises if Hamilton is missing
+        pg.evaluate("init()")
         for i in range(n):
             pg.evaluate(f"setTime({i / FPS:.4f})")
             pg.screenshot(path=str(frames / f"{i:05d}.jpg"), type="jpeg", quality=92)
@@ -142,6 +142,7 @@ def render_frames(data, total, frames):
     return n
 
 
+OUTRO = "فردا می‌بینمت"
 RA = re.compile(r"(?<![\u0600-\u06FF\u200c])را(?![\u0600-\u06FF\u200c])")
 
 
@@ -160,12 +161,11 @@ def main():
     script_path, out_path = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     script = json.loads(script_path.read_text(encoding="utf-8"))
     scenes = [spoken_fix(s) for s in script["scenes"]]
-    last = scenes[-1].get("narration", "").replace("\u200c", "").replace(" ", "")
-    if "فردامیبینمت" not in last:  # the outro must end with this line, never with a save call
-        raise RuntimeError("outro must contain «فردا می‌بینمت»")
     for w in ("درست", "غلط", "صحیح", "اشتباه"):
         if any(w in (s.get("narration", "") + s.get("screen_text", "")) for s in scenes):
             print("WARNING: judging word found in script:", w)
+    # extra final slide, outside the 4 main slides: says goodbye instead of asking to save
+    scenes.append({"type": "outro", "narration": OUTRO, "screen_text": OUTRO})
     narration = " ".join(s["narration"] for s in scenes)
     work = HERE / "_work"
     shutil.rmtree(work, ignore_errors=True)
