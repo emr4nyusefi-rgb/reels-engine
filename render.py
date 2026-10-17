@@ -18,8 +18,10 @@ FONTS = {
 GEMINI_TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]
 VOICE = "Charon"  # fixed narrator voice (the user's choice); never replaced by another voice
 DIRECTOR = ("Read the following transcript based on the director's note.\n\n# Director's note\n"
-            "Style: warm, friendly, natural spoken Persian, like a friend sharing something interesting. "
-            "Lively but unhurried pace, clear pauses between sentences.\n\n## Transcript:\n")
+            "Style: calm, confident and very clear Persian narration, correct standard grammar, "
+            "like a composed expert stating a simple fact. Slow, steady pace, low and relaxed energy, "
+            "firm declarative endings (no upward question tone except for real questions), "
+            "short natural pauses between sentences.\n\n## Transcript:\n")
 
 
 def run(cmd, **kw):
