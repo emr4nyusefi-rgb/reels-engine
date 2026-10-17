@@ -5,7 +5,7 @@ Usage: python render.py script.json out/reel.mp4
 Env:   GEMINI_API_KEY (Gemini TTS), narrator voice fixed in VOICE=Charon; no fallback voice is ever used,
        SKIP_TTS=1 (quiet test tone, only for layout tests)
 """
-import base64, json, os, pathlib, shutil, subprocess, sys, time, urllib.error, urllib.request, wave
+import base64, json, os, pathlib, re, shutil, subprocess, sys, time, urllib.error, urllib.request, wave
 
 W, H = 1080, 1920
 FPS = int(os.environ.get("REEL_FPS", "30"))
@@ -142,11 +142,31 @@ def render_frames(data, total, frames):
     return n
 
 
+RA = re.compile(r"(?<![\u0600-\u06FF\u200c])را(?![\u0600-\u06FF\u200c])")
+
+
+def spoken_fix(scene):
+    """The object marker is always spoken and written as «رو», never «را»."""
+    out = dict(scene)
+    for k in ("narration", "screen_text"):
+        if isinstance(out.get(k), str):
+            out[k] = RA.sub("رو", out[k])
+    if isinstance(out.get("steps"), list):
+        out["steps"] = [RA.sub("رو", x) if isinstance(x, str) else x for x in out["steps"]]
+    return out
+
+
 def main():
     script_path, out_path = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     script = json.loads(script_path.read_text(encoding="utf-8"))
-    scenes = script["scenes"]
-    narration = script.get("narration") or " ".join(s["narration"] for s in scenes)
+    scenes = [spoken_fix(s) for s in script["scenes"]]
+    last = scenes[-1].get("narration", "").replace("\u200c", "").replace(" ", "")
+    if "فردامیبینمت" not in last:  # the outro must end with this line, never with a save call
+        raise RuntimeError("outro must contain «فردا می‌بینمت»")
+    for w in ("درست", "غلط", "صحیح", "اشتباه"):
+        if any(w in (s.get("narration", "") + s.get("screen_text", "")) for s in scenes):
+            print("WARNING: judging word found in script:", w)
+    narration = " ".join(s["narration"] for s in scenes)
     work = HERE / "_work"
     shutil.rmtree(work, ignore_errors=True)
     (work / "frames").mkdir(parents=True)
