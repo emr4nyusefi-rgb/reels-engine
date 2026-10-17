@@ -2,7 +2,7 @@
 """Render one Instagram Reel (1080x1920, 30fps) from a script JSON.
 
 Usage: python render.py script.json out/reel.mp4
-Env:   GEMINI_API_KEY (Gemini TTS), TTS_VOICE (default Riko), EDGE_VOICE (fallback voice),
+Env:   GEMINI_API_KEY (Gemini TTS), TTS_VOICE (default Riko); no fallback voice is ever used,
        SKIP_TTS=1 (quiet test tone, only for layout tests)
 """
 import base64, json, os, pathlib, shutil, subprocess, sys, time, urllib.request, wave
@@ -77,7 +77,7 @@ def make_audio(text, out_wav, work):
     raw = work / "raw.wav"
     if key:
         for model in GEMINI_TTS_MODELS:
-            for attempt in range(2):
+            for attempt in range(4):
                 try:
                     gemini_tts(text, voice, model, key, raw)
                     d = duration(raw)
@@ -87,16 +87,9 @@ def make_audio(text, out_wav, work):
                     return "gemini:" + model + ":" + voice
                 except Exception as e:
                     errors.append(f"{model}: {e}")
-                    time.sleep(4)
-    try:
-        mp3 = work / "edge.mp3"
-        run([sys.executable, "-m", "edge_tts", "--voice", os.environ.get("EDGE_VOICE", "fa-IR-FaridNeural"),
-             "--text", text, "--write-media", str(mp3)], timeout=180)
-        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "24000", "-ac", "1", str(out_wav)])
-        return "edge-tts"
-    except Exception as e:
-        errors.append(f"edge-tts: {e}")
-    raise RuntimeError("All TTS engines failed: " + " | ".join(errors))
+                    time.sleep(6 * (attempt + 1))
+    # Riko must always narrate the reel: if Gemini TTS keeps failing, fail the job instead of using another voice.
+    raise RuntimeError("Gemini TTS (voice " + voice + ") failed after retries; no other voice is used. " + (" | ".join(errors) if errors else "GEMINI_API_KEY missing"))
 
 
 def trim_and_normalize(src, dst):
