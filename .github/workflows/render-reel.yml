@@ -36,7 +36,7 @@ jobs:
       - name: Render reel
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TTS_VOICE: Riko
+          TTS_VOICE: Charon
           SCRIPT: ${{ inputs.script }}
         run: |
           if [ -n "$SCRIPT" ]; then printf '%s' "$SCRIPT" > script.json; else cp sample_script.json script.json; fi
