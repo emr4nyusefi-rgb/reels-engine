@@ -46,7 +46,7 @@ const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const norm=s=>(s||"").replace(/[^\p{L}\p{N}\u200c]/gu,"");
 const fa=n=>String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]);
-const LABELS={empathy:"نتیجه",situation:"موقعیت",example:"مثال",topic:"موضوع مرتبط",practice:"تمرین امروز"};
+const LABELS={empathy:"نتیجه",situation:"موقعیت",practice:"تمرین امروز"};
 const scenes=[];let segEls=[];
 
 function words(el,text){
@@ -103,7 +103,7 @@ function build(){
       const z=zone(o,580);const w=document.createElement("div");w.className="endwrap";z.appendChild(w);
       const t=document.createElement("div");t.className="big";t.style.width="100%";w.appendChild(t);
       o.words=words(t,s.screen_text||s.narration);fit(t,520,[100,92,84,76,68]);
-      
+      const sg=document.createElement("div");sg.className="script";sg.textContent="Maybe life will be better tomorrow.";w.appendChild(sg);o.script=sg;
     }else if(s.type==="outro"){
       // extra final slide, outside the 4 main slides: no tag, no bookmark, just the goodbye line
       const z=zone(o,780);
@@ -112,9 +112,8 @@ function build(){
       const bar=document.createElement("div");bar.className="bar";bar.style.width="220px";bar.style.right="0";
       bar.style.position="relative";bar.style.display="block";bar.style.marginLeft="auto";bar.style.marginTop="30px";
       z.appendChild(bar);o.bar=bar;
-      const sg=document.createElement("div");sg.className="script";sg.style.marginTop="70px";sg.style.textAlign="left";sg.textContent="Maybe life will be better tomorrow.";z.appendChild(sg);o.script=sg;
     }else{
-      const z=zone(o,["situation","example","topic"].includes(s.type)?560:600);tag(o,z,s.label||LABELS[s.type]||LABELS.empathy);
+      const z=zone(o,s.type==="situation"?560:600);tag(o,z,s.label||LABELS[s.type]||LABELS.empathy);
       const t=document.createElement("div");t.className="big";z.appendChild(t);
       o.words=words(t,s.screen_text||s.narration);fit(t,760,[100,92,84,76,68,60]);
       const bar=document.createElement("div");bar.className="bar";bar.style.width="220px";bar.style.right="0";
@@ -154,17 +153,28 @@ function setTime(t){
       o.steps.forEach((r,i)=>{const a=ease((lt-0.6-i*gap)/0.45);r.style.opacity=a;r.style.transform="translateY("+((1-a)*26)+"px)";});
     }else if(o.type==="loop"){
       const doneAt=reveal(o,lt,0.4,Math.min(1.0,dur*0.4));
-      
+      o.script.style.opacity=ease((lt-doneAt)/0.5);
     }else{
       const doneAt=reveal(o,lt,0.4,Math.min(1.4,dur*0.55));
       o.bar.style.transform="scaleX("+ease((lt-doneAt+0.1)/0.5)+")";
-      if(o.script)o.script.style.opacity=ease((lt-Math.max(doneAt+0.15,dur-1.5))/0.5);
     }
   });
   const nm=scenes.filter(s=>s.type!=="outro").length;
   document.getElementById("idx").textContent=(cur<0?"":(cur>=nm?"":("0"+(cur+1)+" / 0"+nm)));
   const ct=cur<0?"":scenes[cur].type;
   tg.style.opacity=(cur>0&&ct!=="loop"&&ct!=="outro")?1:0;
+}
+function cover(){
+  // thumbnail: the hook slide fully revealed, without the progress bar / counter / bottom tagline
+  ["segs","idx","tagline"].forEach(id=>{document.getElementById(id).style.visibility="hidden";});
+  scenes.forEach((o,i)=>{
+    o.el.style.opacity=(i===0)?1:0;
+    if(i!==0)return;
+    if(o.phrase)o.phrase.style.opacity=1;
+    o.words.forEach(w=>{w.style.opacity=1;w.style.transform="none";});
+    o.bar.style.transform="scaleX(1)";
+  });
+  return true;
 }
 async function init(){
   await document.fonts.load('100px TCScript','Ab');
